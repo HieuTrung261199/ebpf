@@ -1,12 +1,12 @@
 # Manual
-    Guide to using bpftrace
+    Guide to using eBPF program
 # Install
 ## Install Clang and LLVM
           sudo apt install clang llvm
-## Install bpftrace
-          sudo apt install bpftrace
+## Install bpftool
+          sudo apt install linux-tools-common
+          https://github.com/libbpf/bpftool/tree/main
 # Inspect
-          which bpftrace
+          which bpftool
           which clang
-# Test
-          sudo bpftrace -e 'BEGIN { printf("bpftrace is working!\n"); }'
+
