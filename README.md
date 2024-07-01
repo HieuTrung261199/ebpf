@@ -3,8 +3,8 @@
 # Install
 ## Install Clang and LLVM
           sudo apt install clang llvm
-[Your link here ](https://github.com/libbpf/bpftool/tree/main)
-## Install bpftool
+
+## Install bpftool[Your link here ](https://github.com/libbpf/bpftool/tree/main)
           sudo apt install linux-tools-common
           
 # Inspect
