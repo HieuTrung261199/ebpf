@@ -5,22 +5,27 @@
 #include "msg.h"
 
 
-#define O_CREAT 0x40
-struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1024 * 1024);
-} rb_exec SEC(".maps");
+#define O_CREAT 0x02
 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 512 * 1024);
 } rb_content SEC(".maps");
 
-
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 512 * 1024);
+} rb_access SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 1024 * 1024);
 } rb_open SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 1024 * 1024);
+} rb_id SEC(".maps");
 
 //Event for create file in /etc/init.d
 struct addfile_params_t {
@@ -32,6 +37,23 @@ struct addfile_params_t {
     mode_t mode;
 };
 
+
+
+//Event for acess
+struct acess_params_t {
+    u64 __unused;
+    u64 __unused2;
+    char *pathname;
+};
+
+//Event for getid
+struct id_params_t {
+    u64 __unused;
+    u64 __unused2;
+    unsigned long long uid;
+};
+
+
 //Event for execve
 struct exec_params_t {
     u64 __unused;
@@ -41,8 +63,8 @@ struct exec_params_t {
 
 //Event for Content
 struct change_params_t {
-    uint64_t unused1;
-    uint64_t unused2;
+    u64 __unused;
+    u64 __unused2;
     unsigned int fd;
     const char * buf;
     size_t count;
@@ -60,6 +82,28 @@ int handle_open(struct addfile_params_t *params)
     msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
 
     if (!msg2) {
+        bpf_printk("ERROR: unable to reserve memory of Open\n");
+        return 0;
+    }
+
+    msg2->pid = BPF_CORE_READ(task, pid);
+    bpf_get_current_comm(&msg2->command, sizeof(msg2->command));
+    bpf_probe_read_user_str(msg2->pathname, sizeof(msg2->pathname), params->pathname);
+    bpf_ringbuf_submit(msg2, 0);
+    bpf_printk("111\n");
+    return 0;
+}
+
+
+SEC("tp/syscalls/sys_enter_access")
+int handle_access(struct acess_params_t *params)
+{
+    struct task_struct *task = (struct task_struct*)bpf_get_current_task();
+    struct access * msg2;
+
+    msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
+
+    if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory\n");
         return 0;
     }
@@ -68,34 +112,46 @@ int handle_open(struct addfile_params_t *params)
     bpf_get_current_comm(&msg2->command, sizeof(msg2->command));
     bpf_probe_read_user_str(msg2->pathname, sizeof(msg2->pathname), params->pathname);
     bpf_ringbuf_submit(msg2, 0);
-    
+    bpf_printk("333\n");
     return 0;
 }
 
-
-SEC("tp/syscalls/sys_enter_execve")
-int handle_exec(struct exec_params_t *params)
+SEC("tp/syscalls/sys_enter_setuid")
+int handle_getupid(struct id_params_t *params)
 {
     struct task_struct *task = (struct task_struct*)bpf_get_current_task();
-    struct execve *msg;
+    struct getid * msg2;
 
-    msg = bpf_ringbuf_reserve(&rb_exec, sizeof(*msg), 0);
-    if (!msg) {
+    msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
+
+    if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory\n");
         return 0;
     }
 
-    msg->pid = BPF_CORE_READ(task, pid);
-    bpf_get_current_comm(&msg->command, sizeof(msg->command));
-    bpf_probe_read_user_str(msg->filename, sizeof(msg->filename), params->file);
-    bpf_ringbuf_submit(msg, 0);
+    msg2 -> uid = params -> uid ;
+    msg2->pid = BPF_CORE_READ(task, pid);
     
-    
+    bpf_printk("PID %d called setuid with UID %d\n", msg2->pid, msg2->uid);
+    bpf_ringbuf_submit(msg2, 0);
     return 0;
 }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 SEC("tp/syscalls/sys_enter_pwrite64")
 int trace_sys_enter_pwrite64(struct change_params_t *params) {
     // Print or process the values as needed
@@ -114,11 +170,10 @@ int trace_sys_enter_pwrite64(struct change_params_t *params) {
     
     //bpf_printk("sys_enter_pwrite64: fd=%lld,  count=%lld, pos=%lld\\n",params -> fd, params -> count, params ->  pos);
     bpf_ringbuf_submit(msg1, 0);
-    
+    bpf_printk("222\n");
     return 0;
-}
+}*/
 
 
 char LICENSE[] SEC("license") = "GPL";
-
 
