@@ -21,7 +21,7 @@ static void bump_memlock_rlimit(void)
     }
 }
 
-/*
+
 static int handle_open(void *ctx, void *data, size_t sz)
 {   
     FILE *log_file = fopen(LOG_FILE_PATH, "a");
@@ -35,34 +35,54 @@ static int handle_open(void *ctx, void *data, size_t sz)
     strftime(timeString, sizeof(timeString), "%H:%M:%S", time_info);
     //if (msg->pathname && strncmp(msg->pathname, "/home/hieu/Desktop/eBPF/log.txt", 30) != 0){}
     
-    if (msg->pathname && strncmp(msg->pathname, "/etc/init.d", 10) == 0){
-        fprintf(stdout, "\nTime: %s\n", timeString);
-        fprintf(stdout, "PID %d, command: %s, path: %s\n", msg->pid, msg->command, msg->pathname);}
+    //if (msg->pathname && strncmp(msg->pathname, "/etc/init.d", 10) == 0){}
+    if ( (msg->command && strncmp(msg->command, "vmtoolsd", 7) != 0)   ){
+        if((msg->command && strncmp(msg->command, "cpuUsage.sh", 10) != 0)){
+        fprintf(log_file, "\nTime: %s\n", timeString);
+        fprintf(log_file, "PID %d, command: %s, path: %s\n", msg->pid, msg->command, msg->pathname);}}
     fclose(log_file);
     return 0;
-}*/
+}
 
-
-static int handle_exec(void *ctx, void *data, size_t sz)
+static int handle_access(void *ctx, void *data, size_t sz)
 {   
     FILE *log_file = fopen(LOG_FILE_PATH, "a");
-    const struct execve *msg = data;
-
+    const struct access *msg = data;
+    
     time_t current_time;
     struct tm *time_info;
     char timeString[9];
     time(&current_time);
     time_info = localtime(&current_time);
     strftime(timeString, sizeof(timeString), "%H:%M:%S", time_info);
-
-    if (msg->command && strncmp(msg->command, "cpuUsage.sh", 10) != 0){
+    
+    if ( (msg->command && strncmp(msg->command, "vmtoolsd", 7) != 0)   ){
+        if((msg->command && strncmp(msg->command, "cpuUsage.sh", 10) != 0)){
         fprintf(log_file, "\nTime: %s\n", timeString);
-        fprintf(log_file, "PID %d, command: %s, path: %s\n", msg->pid, msg->command, msg->filename);}
-
-
+        fprintf(log_file, "PID %d accessed file, comand %s , %s\n", msg->pid, msg->command, msg->pathname);}}
     fclose(log_file);
     return 0;
 }
+
+static int handle_uid(void *ctx, void *data, size_t sz)
+{   
+    FILE *log_file = fopen(LOG_FILE_PATH, "a");
+    const struct getid *msg = data;
+    
+    time_t current_time;
+    struct tm *time_info;
+    char timeString[9];
+    time(&current_time);
+    time_info = localtime(&current_time);
+    strftime(timeString, sizeof(timeString), "%H:%M:%S", time_info);
+    
+        fprintf(log_file, "\nTime: %s\n", timeString);
+        fprintf(log_file, "PID %d called setuid with UID %d\n", msg->pid, msg->uid);
+    fclose(log_file);
+    return 0;
+}
+
+
 
 
 static int handle_content_evt(void *ctx, void *data, size_t sz)
@@ -102,14 +122,17 @@ int main(void)
         
     }
 
-    struct ring_buffer *rb_exec = ring_buffer__new(bpf_map__fd(skel->maps.rb_exec), handle_exec, NULL, NULL);
-    //struct ring_buffer *rb_open = ring_buffer__new(bpf_map__fd(skel->maps.rb_open), handle_open, NULL, NULL);
-    struct ring_buffer *rb_content = ring_buffer__new(bpf_map__fd(skel->maps.rb_content), handle_content_evt, NULL, NULL);
-
+    
+    struct ring_buffer *rb_open = ring_buffer__new(bpf_map__fd(skel->maps.rb_open), handle_open, NULL, NULL);
+    //struct ring_buffer *rb_content = ring_buffer__new(bpf_map__fd(skel->maps.rb_content), handle_content_evt, NULL, NULL);
+    struct ring_buffer *rb_access = ring_buffer__new(bpf_map__fd(skel->maps.rb_access), handle_access, NULL, NULL);
+    struct ring_buffer *rb_id = ring_buffer__new(bpf_map__fd(skel->maps.rb_id), handle_uid, NULL, NULL);
     while (1) {
-        ring_buffer__poll(rb_exec, 1000);  // Poll every 1000 microseconds (1 millisecond)
-        //ring_buffer__poll(rb_open, 1000);
-        ring_buffer__poll(rb_content, 1000);
+        
+        ring_buffer__poll(rb_open, 1000);
+        ring_buffer__poll(rb_access, 1000);
+        ring_buffer__poll(rb_id, 1000);
+        //ring_buffer__poll(rb_content, 1000);
     }
 
 
