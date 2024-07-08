@@ -8,10 +8,24 @@ struct execve {
     char filename[32];
 };
 
+struct access {
+    pid_t pid;
+    char command[128];
+    char pathname[128];
+    char filename[32];
+};
+
 struct add_file {
     pid_t pid;
     char command[128];
     char pathname[128];
+};
+
+struct getid {
+    pid_t pid;
+    char command[128];
+    char pathname[128];
+    unsigned long long uid;
 };
 
 struct content {
