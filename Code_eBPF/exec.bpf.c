@@ -38,7 +38,6 @@ struct addfile_params_t {
 };
 
 
-
 //Event for acess
 struct acess_params_t {
     u64 __unused;
@@ -53,13 +52,6 @@ struct id_params_t {
     unsigned long long uid;
 };
 
-
-//Event for execve
-struct exec_params_t {
-    u64 __unused;
-    u64 __unused2;
-    char *file;
-};
 
 //Event for Content
 struct change_params_t {
@@ -76,7 +68,7 @@ int handle_open(struct addfile_params_t *params)
 {
     struct task_struct *task = (struct task_struct*)bpf_get_current_task();
     struct add_file * msg2;
-    // Kiểm tra nếu cờ O_CREAT được thiết lập, có nghĩa là file đang được tạo
+    
     if (!(params->flags & O_CREAT))
         return 0;
     msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
@@ -101,7 +93,7 @@ int handle_access(struct acess_params_t *params)
     struct task_struct *task = (struct task_struct*)bpf_get_current_task();
     struct access * msg2;
 
-    msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
+    msg2 = bpf_ringbuf_reserve(&rb_access , sizeof(*msg2), 0);
 
     if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory\n");
@@ -122,7 +114,7 @@ int handle_getupid(struct id_params_t *params)
     struct task_struct *task = (struct task_struct*)bpf_get_current_task();
     struct getid * msg2;
 
-    msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
+    msg2 = bpf_ringbuf_reserve(&rb_id  , sizeof(*msg2), 0);
 
     if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory\n");
@@ -135,23 +127,11 @@ int handle_getupid(struct id_params_t *params)
     bpf_printk("PID %d called setuid with UID %d\n", msg2->pid, msg2->uid);
     bpf_ringbuf_submit(msg2, 0);
     return 0;
+
+    
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
 SEC("tp/syscalls/sys_enter_pwrite64")
 int trace_sys_enter_pwrite64(struct change_params_t *params) {
     // Print or process the values as needed
@@ -172,7 +152,7 @@ int trace_sys_enter_pwrite64(struct change_params_t *params) {
     bpf_ringbuf_submit(msg1, 0);
     bpf_printk("222\n");
     return 0;
-}*/
+}
 
 
 char LICENSE[] SEC("license") = "GPL";
