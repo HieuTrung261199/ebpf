@@ -10,4 +10,7 @@
 # Inspect
           which bpftool
           which clang
+# Run
+          cd codetest
+          make run
 
