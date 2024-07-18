@@ -46,7 +46,6 @@ static void log_current_time(FILE *log_file) {
     time(&current_time);
     time_info = localtime(&current_time);
     strftime(timeString, sizeof(timeString), "%H:%M:%S", time_info);
-
     fprintf(log_file, "\nTime: %s\n", timeString);
 }
 
