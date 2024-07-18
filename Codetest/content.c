@@ -9,7 +9,7 @@ int main() {
     }
 
     const char *buf = "Hello, bpftrace!";
-    pwrite(fd, buf, strlen(buf), 15); // Ghi tại vị trí 0
+    pwrite(fd, buf, strlen(buf), 15); //write in position 0
 
     close(fd);
     return 0;
