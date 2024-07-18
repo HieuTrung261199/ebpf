@@ -4,7 +4,6 @@
 #include <bpf/bpf_tracing.h>
 #include "msg.h"
 
-
 #define O_CREAT 0x02
 
 struct {
@@ -27,7 +26,7 @@ struct {
     __uint(max_entries, 1024 * 1024);
 } rb_id SEC(".maps");
 
-//Event for create file in /etc/init.d
+//Event for open file
 struct addfile_params_t {
     u64 __unused;
     u64 __unused2;
@@ -36,7 +35,6 @@ struct addfile_params_t {
     int flags;
     mode_t mode;
 };
-
 
 //Event for acess
 struct acess_params_t {
@@ -51,7 +49,6 @@ struct id_params_t {
     u64 __unused2;
     unsigned long long uid;
 };
-
 
 //Event for Content
 struct change_params_t {
@@ -71,8 +68,8 @@ int handle_open(struct addfile_params_t *params)
     
     if (!(params->flags & O_CREAT))
         return 0;
-    msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
 
+    msg2 = bpf_ringbuf_reserve(&rb_open , sizeof(*msg2), 0);
     if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory of Open\n");
         return 0;
@@ -82,19 +79,17 @@ int handle_open(struct addfile_params_t *params)
     bpf_get_current_comm(&msg2->command, sizeof(msg2->command));
     bpf_probe_read_user_str(msg2->pathname, sizeof(msg2->pathname), params->pathname);
     bpf_ringbuf_submit(msg2, 0);
-    bpf_printk("111\n");
+    bpf_printk("sys_enter_openat called\n");
     return 0;
 }
-
 
 SEC("tp/syscalls/sys_enter_access")
 int handle_access(struct acess_params_t *params)
 {
     struct task_struct *task = (struct task_struct*)bpf_get_current_task();
     struct access * msg2;
-
+    
     msg2 = bpf_ringbuf_reserve(&rb_access , sizeof(*msg2), 0);
-
     if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory\n");
         return 0;
@@ -104,7 +99,7 @@ int handle_access(struct acess_params_t *params)
     bpf_get_current_comm(&msg2->command, sizeof(msg2->command));
     bpf_probe_read_user_str(msg2->pathname, sizeof(msg2->pathname), params->pathname);
     bpf_ringbuf_submit(msg2, 0);
-    bpf_printk("333\n");
+    bpf_printk("sys_enter_access called\n");
     return 0;
 }
 
@@ -115,28 +110,26 @@ int handle_getupid(struct id_params_t *params)
     struct getid * msg2;
 
     msg2 = bpf_ringbuf_reserve(&rb_id  , sizeof(*msg2), 0);
-
     if (!msg2) {
         bpf_printk("ERROR: unable to reserve memory\n");
         return 0;
     }
 
     msg2 -> uid = params -> uid ;
-    msg2->pid = BPF_CORE_READ(task, pid);
+    msg2->  pid = BPF_CORE_READ(task, pid);
     
     bpf_printk("PID %d called setuid with UID %d\n", msg2->pid, msg2->uid);
     bpf_ringbuf_submit(msg2, 0);
     return 0;
-
-    
+ 
 }
-
 
 SEC("tp/syscalls/sys_enter_pwrite64")
 int trace_sys_enter_pwrite64(struct change_params_t *params) {
     // Print or process the values as needed
     struct task_struct *task = (struct task_struct*)bpf_get_current_task();
     struct content *msg1;
+
     msg1 = bpf_ringbuf_reserve(&rb_content, sizeof(*msg1), 0);
     if (!msg1) {
         bpf_printk("ERROR: unable to reserve memory\n");
@@ -148,9 +141,8 @@ int trace_sys_enter_pwrite64(struct change_params_t *params) {
     msg1 -> pos  =  params -> pos;
     msg1->pid = BPF_CORE_READ(task, pid);
     
-    //bpf_printk("sys_enter_pwrite64: fd=%lld,  count=%lld, pos=%lld\\n",params -> fd, params -> count, params ->  pos);
     bpf_ringbuf_submit(msg1, 0);
-    bpf_printk("222\n");
+    bpf_printk("sys_enter_pwrite64 is called\n");
     return 0;
 }
 
