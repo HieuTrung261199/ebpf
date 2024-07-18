@@ -10,11 +10,11 @@ int main() {
     
     const char *filename = "test_file.txt";
 
-    // Đường dẫn đầy đủ của file
+    //File path
     char filepath[256];
     snprintf(filepath, sizeof(filepath), "%s%s", directory, filename);
 
-    // Mở file để tạo mới, nếu file không tồn tại sẽ tạo mới, cờ O_CREAT
+    //Open file
     int fd = open(filepath, O_WRONLY | O_CREAT, 0644);
     if (fd == -1) {
         perror("open");
